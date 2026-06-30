@@ -1,0 +1,45 @@
+========================================================================
+MODIFICACIONES REALIZADAS - CONEXIÓN FORMULARIO WEB A CRM NOTION + RESEND + IA
+========================================================================
+
+Este archivo detalla los cambios realizados y la configuración necesaria para la automatización e integración inteligente del formulario de contacto.
+
+------------------------------------------------------------------------
+1. ARCHIVOS MODIFICADOS O CREADOS
+------------------------------------------------------------------------
+1. [modificaciones.txt](file:///C:/Users/anate/Desktop/syntralabs/modificaciones.txt) (Creado)
+   - Archivo de documentación en la raíz del workspace que detalla las modificaciones y la colocación de variables de entorno.
+2. [entry.ts](file:///C:/Users/anate/Desktop/syntralabs/base44/functions/notifyNewLead/entry.ts) (Modificado)
+   - Función serverless asíncrona de Deno (Base44 backend hook) que procesa los nuevos leads.
+
+------------------------------------------------------------------------
+2. DETALLE DE CAMBIOS EN base44/functions/notifyNewLead/entry.ts
+------------------------------------------------------------------------
+Se ha reemplazado la lógica de la función `notifyNewLead` con una solución robusta y tolerante a fallos para producción:
+- **Lectura de Variables de Entorno**: Se leen dinámicamente mediante `Deno.env.get(...)` las variables `OPENAI_API_KEY`, `NOTION_API_KEY`, `NOTION_DATABASE_ID`, `RESEND_API_KEY`, y los correos de envío/recepción.
+- **Manejo de Errores e Independencia**:
+  - **Agente de IA (OpenAI)**: Analiza el mensaje, presupuesto y empresa para inferir de manera precisa el `sector`, `service` (mapeado a "Automatización", "Diseño web", "Agente IA", "Otro"), `goals`, `timeframe` y si contiene `website`. Si el API call falla o no está configurado, la función continúa utilizando valores por defecto coherentes.
+  - **CRM Notion**: Realiza la inserción del lead y sus campos en Notion usando `@notionhq/client`. Si la llamada falla, registra el error y prosigue sin bloquear el flujo.
+  - **Notificaciones Resend con Fallback**: Intenta enviar la alerta de lead formateada en HTML mediante la API de Resend. Si no hay clave de Resend o la llamada falla, se activa automáticamente el método de respaldo nativo de Base44 (`SendEmail` de Core Integrations) para garantizar la entrega del correo al equipo.
+
+------------------------------------------------------------------------
+3. DÓNDE COLOCAR LAS CREDENCIALES (API KEYS Y DIRECCIONES DE EMAIL)
+------------------------------------------------------------------------
+Las variables de entorno son requeridas a nivel de servidor (Edge Function de Deno) y deben ser configuradas en el Panel de Administración de Base44 en **Base44.com**:
+
+1. **Configuración de Variables de Entorno en el Dashboard**:
+   Ve a la sección de configuración de tu proyecto en Base44 y añade las siguientes claves:
+   - `OPENAI_API_KEY`: API key de OpenAI (ej. `sk-proj-EVTH...`).
+   - `NOTION_API_KEY`: Secret de integración interna de Notion (ej. `ntn_6159...`).
+   - `NOTION_DATABASE_ID`: Identificador único de la base de datos CRM de Notion.
+   - `RESEND_API_KEY`: Clave API de Resend para el envío de notificaciones (ej. `re_LTXJ...`).
+   - `EMAIL_FROM` (o `RESEND_FROM_EMAIL`): Dirección de correo remitente verificada en Resend (ej. `info@ltevo.com` o el dominio propio verificado).
+   - `EMAIL_TO` (o `RESEND_TO_EMAIL`): Dirección de correo destinataria donde recibirás los leads (ej. `info@syntralabs.es`).
+
+2. **Configuración para Desarrollo Local**:
+   Si necesitas simular el comportamiento localmente para el frontend de Vite, crea un archivo `.env.local` en la raíz de `syntralabs` y define:
+   - `VITE_BASE44_APP_ID=6a22ad22627c0746f590d658`
+   - `VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app`
+   *(Reemplaza por tus credenciales de aplicación en desarrollo local).*
+
+========================================================================

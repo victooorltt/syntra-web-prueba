@@ -1,0 +1,53 @@
+{
+  "name": "ContactLead",
+  "type": "object",
+  "properties": {
+    "nombre": {
+      "type": "string",
+      "description": "Nombre del contacto"
+    },
+    "telefono": {
+      "type": "string",
+      "description": "N\u00famero de tel\u00e9fono"
+    },
+    "email": {
+      "type": "string",
+      "description": "Correo electr\u00f3nico"
+    },
+    "nombre_negocio": {
+      "type": "string",
+      "description": "Nombre de la cl\u00ednica o negocio"
+    },
+    "presupuesto": {
+      "type": "string",
+      "enum": [
+        "495-995",
+        "995-1995",
+        "2000-5000",
+        "5000+"
+      ],
+      "description": "Rango de presupuesto estimado"
+    },
+    "mensaje": {
+      "type": "string",
+      "description": "Mensaje del empresario"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "nuevo",
+        "contactado",
+        "en_proceso",
+        "convertido"
+      ],
+      "default": "nuevo",
+      "description": "Estado del lead"
+    }
+  },
+  "required": [
+    "nombre",
+    "telefono",
+    "email",
+    "nombre_negocio"
+  ]
+}
