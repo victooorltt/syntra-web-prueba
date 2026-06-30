@@ -7,13 +7,19 @@ Este archivo detalla los cambios realizados y la configuración necesaria para l
 ------------------------------------------------------------------------
 1. ARCHIVOS MODIFICADOS O CREADOS
 ------------------------------------------------------------------------
-1. [modificaciones.txt](file:///C:/Users/anate/Desktop/syntralabs/modificaciones.txt) (Creado)
+1. [modificaciones.txt](file:///C:/Users/anate/Desktop/syntralabs/modificaciones.txt) (Modificado)
    - Archivo de documentación en la raíz del workspace que detalla las modificaciones y la colocación de variables de entorno.
-2. [entry.ts](file:///C:/Users/anate/Desktop/syntralabs/base44/functions/notifyNewLead/entry.ts) (Modificado)
-   - Función serverless asíncrona de Deno (Base44 backend hook) que procesa los nuevos leads.
+2. [/api/notifyNewLead.js](file:///C:/Users/anate/Desktop/syntralabs/api/notifyNewLead.js) (Creado)
+   - Función serverless de Node.js (ESM) para Vercel que procesa los leads recibidos por el formulario de la landing.
+3. [entry.ts](file:///C:/Users/anate/Desktop/syntralabs/base44/functions/notifyNewLead/entry.ts) (Modificado)
+   - Función serverless asíncrona de Deno (Base44 backend hook) que procesa los nuevos leads (versión original).
+4. [package.json](file:///C:/Users/anate/Desktop/syntralabs/package.json) (Modificado)
+   - Se añadieron dependencias de producción para el entorno Node.js: `openai`, `@notionhq/client` y `resend`.
+5. [ContactForm.jsx](file:///C:/Users/anate/Desktop/syntralabs/src/components/landing/ContactForm.jsx) (Modificado)
+   - Se actualizó el envío del formulario usando fetch hacia el endpoint de Vercel `/api/notifyNewLead`.
 
 ------------------------------------------------------------------------
-2. DETALLE DE CAMBIOS EN base44/functions/notifyNewLead/entry.ts
+2. DETALLE DE CAMBIOS EN base44/functions/notifyNewLead/entry.ts (Deno Hook)
 ------------------------------------------------------------------------
 Se ha reemplazado la lógica de la función `notifyNewLead` con una solución robusta y tolerante a fallos para producción:
 - **Lectura de Variables de Entorno**: Se leen dinámicamente mediante `Deno.env.get(...)` las variables `OPENAI_API_KEY`, `NOTION_API_KEY`, `NOTION_DATABASE_ID`, `RESEND_API_KEY`, y los correos de envío/recepción.
@@ -23,23 +29,32 @@ Se ha reemplazado la lógica de la función `notifyNewLead` con una solución ro
   - **Notificaciones Resend con Fallback**: Intenta enviar la alerta de lead formateada en HTML mediante la API de Resend. Si no hay clave de Resend o la llamada falla, se activa automáticamente el método de respaldo nativo de Base44 (`SendEmail` de Core Integrations) para garantizar la entrega del correo al equipo.
 
 ------------------------------------------------------------------------
-3. DÓNDE COLOCAR LAS CREDENCIALES (API KEYS Y DIRECCIONES DE EMAIL)
+3. INTEGRACIÓN CON VERCEL SERVERLESS (api/notifyNewLead.js)
 ------------------------------------------------------------------------
-Las variables de entorno son requeridas a nivel de servidor (Edge Function de Deno) y deben ser configuradas en el Panel de Administración de Base44 en **Base44.com**:
+Para facilitar las pruebas de integración y despliegue del formulario directamente en la infraestructura de Vercel:
+- **Enrutamiento local**: Se creó `/api/notifyNewLead.js` que implementa la misma lógica asíncrona tolerante a fallos en Node.js (utilizando ES Modules ya que la app está configurada con `"type": "module"`).
+- **Consumo directo**: El componente `ContactForm.jsx` ahora realiza un `fetch('/api/notifyNewLead')` con un método `POST` y formato JSON.
+- **Robustez**: Cada API externa (OpenAI, Notion, Resend) está protegida por su propio bloque `try-catch`. Si una llamada falla, se registra en consola y la función continúa con las siguientes operaciones, retornando siempre `res.status(200).json({ ok: true })` para no romper la experiencia de usuario y facilitar la depuración a través de los logs en el dashboard de Vercel.
 
-1. **Configuración de Variables de Entorno en el Dashboard**:
-   Ve a la sección de configuración de tu proyecto en Base44 y añade las siguientes claves:
+------------------------------------------------------------------------
+4. CONFIGURACIÓN DE VARIABLES DE ENTORNO EN VERCEL
+------------------------------------------------------------------------
+Para que la función de Vercel opere correctamente, es indispensable registrar las siguientes variables de entorno en el panel de tu proyecto en **vercel.com** (bajo `Settings > Environment Variables`):
+
+1. **Variables Obligatorias / Recomendadas**:
    - `OPENAI_API_KEY`: API key de OpenAI (ej. `sk-proj-EVTH...`).
    - `NOTION_API_KEY`: Secret de integración interna de Notion (ej. `ntn_6159...`).
-   - `NOTION_DATABASE_ID`: Identificador único de la base de datos CRM de Notion.
-   - `RESEND_API_KEY`: Clave API de Resend para el envío de notificaciones (ej. `re_LTXJ...`).
-   - `EMAIL_FROM` (o `RESEND_FROM_EMAIL`): Dirección de correo remitente verificada en Resend (ej. `info@ltevo.com` o el dominio propio verificado).
+   - `NOTION_DATABASE_ID`: Identificador de base de datos del CRM en Notion.
+   - `RESEND_API_KEY`: Clave API de Resend para notificaciones por correo (ej. `re_LTXJ...`).
+   - `EMAIL_FROM` (o `RESEND_FROM_EMAIL`): Dirección remitente verificada en tu cuenta de Resend (ej. `info@ltevo.com` o el dominio propio verificado).
    - `EMAIL_TO` (o `RESEND_TO_EMAIL`): Dirección de correo destinataria donde recibirás los leads (ej. `info@syntralabs.es`).
 
-2. **Configuración para Desarrollo Local**:
-   Si necesitas simular el comportamiento localmente para el frontend de Vite, crea un archivo `.env.local` en la raíz de `syntralabs` y define:
-   - `VITE_BASE44_APP_ID=6a22ad22627c0746f590d658`
-   - `VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app`
-   *(Reemplaza por tus credenciales de aplicación en desarrollo local).*
+2. **Desarrollo y Pruebas Locales**:
+   - Ejecuta tu proyecto local usando `vercel dev` para emular el entorno de funciones serverless de Vercel en local. Este comando levantará la aplicación e interceptará las peticiones a `/api/notifyNewLead` redirigiéndolas automáticamente al archivo local `api/notifyNewLead.js`.
+
+------------------------------------------------------------------------
+5. NOTA SOBRE OTROS SERVICIOS FRONTEND
+------------------------------------------------------------------------
+El componente de agendamiento (`BookingSection.jsx`) sigue utilizando el SDK de Base44 para invocar las funciones `getCalendarSlots` y `bookCalendarSlot`. Estas no interfieren con las pruebas del formulario de contacto y continuarán funcionando a través del cliente Base44 siempre que se tenga configurado `VITE_BASE44_APP_ID` y `VITE_BASE44_APP_BASE_URL` en el entorno o archivo `.env.local`.
 
 ========================================================================

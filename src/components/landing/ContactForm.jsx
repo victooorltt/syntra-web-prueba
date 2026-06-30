@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2, CheckCircle2, Mail, Phone, MapPin } from "lucide-react";
 import { fadeUp, slideLeft, slideRight } from "@/lib/animations";
@@ -14,9 +13,20 @@ export default function ContactForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    await base44.entities.ContactLead.create(form);
-    setLoading(false);
-    setSubmitted(true);
+    try {
+      await fetch('/api/notifyNewLead', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(form)
+      });
+    } catch (err) {
+      console.error("Error submitting lead:", err);
+    } finally {
+      setLoading(false);
+      setSubmitted(true);
+    }
   };
 
   const inputStyle = {
